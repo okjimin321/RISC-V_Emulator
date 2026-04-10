@@ -126,7 +126,7 @@ void RISCV_CPU::execute(uint32_t inst){
                 case 0x02: result = static_cast<int32_t>(regs[rs1]) < static_cast<int32_t>(regs[rs2]);  break; // SLT
                 case 0x03: result = regs[rs1] < regs[rs2];                                              break; // SLTU
                 case 0x05:{ // SRL and SRA
-                
+
                     if(funct7 == 0x00){ 
                         result = regs[rs1] >> regs[rs2];
                     } else{ // Arithmetic
@@ -142,6 +142,100 @@ void RISCV_CPU::execute(uint32_t inst){
             if(rd != 0){
                 regs[rd] = result;
             }
+            break;
+        }
+        
+        case 0x6f:{ // JAL Operation
+            
+            uint8_t rd         = (inst >> 7)  & 0x1f;
+            int32_t imm20      = (inst >> 31) & 0x1;
+            int32_t imm10_1    = (inst >> 21) & 0x3ff;
+            int32_t imm11      = (inst >> 20) & 0x1;
+            int32_t imm19_12   = (inst >> 12) & 0xff;
+
+            int32_t offset = (imm20 << 20) | (imm10_1 << 1) | (imm11 << 11) | (imm19_12 << 12);
+            if(offset & (1 << 20)){
+                offset |= 0xffe00000; // Arithmetic
+            }
+
+            // save Return address
+            if(rd != 0)
+                this->regs[rd] = this->pc;
+
+            // Jump
+            this->pc = (pc - 4) + offset; 
+            break;  
+        }
+        
+        case 0x67: { // JALR Operation 
+            uint8_t rd     = (inst >> 7)  & 0x1f;
+            uint8_t funct3 = (inst >> 12) & 0x07;
+            uint8_t rs1    = (inst >> 15) & 0x1f;
+
+            int32_t offset = (static_cast<int32_t>(inst) >> 20);
+
+            // save Return address
+            if(rd != 0)
+                this->regs[rd] = this->pc;
+
+            // Jump
+            this->pc = (regs[rs1] + offset) & ~0x1; 
+            break;
+        }
+        
+        case 0x63:{ // B-type
+            
+
+            uint8_t  rs1     = (inst >> 15) & 0x1f;
+            uint8_t  rs2     = (inst >> 20) & 0x1f;
+            uint8_t  funct3  = (inst >> 12) & 0x7;
+            uint32_t imm11   = (inst >> 7)  & 0x1;
+            uint32_t imm4_1  = (inst >> 8)  & 0xf;
+            uint32_t imm10_5 = (inst >> 25) & 0x3f;
+            uint32_t imm12   = (inst >> 31) & 0x1;
+
+            uint32_t offset = (imm4_1 << 1) | (imm10_5 << 5) | (imm11 << 11) | (imm12 << 12);
+            if(offset & (1 << 12)){
+                offset |= 0xffffe000;
+            }
+
+            bool jump = false;
+            switch(funct3){
+                case 0x0:{ // BEQ
+                    if(regs[rs1] == regs[rs2]) 
+                        jump = true;
+                    break;
+                }
+                case 0x01:{ // BNE
+                    if(regs[rs1] != regs[rs2])
+                        jump = true;
+                    break;
+                }
+                case 0x04:{ // BLT
+                    if(static_cast<int32_t>(regs[rs1]) < static_cast<int32_t>(regs[rs2]))
+                        jump = true;
+                    break;
+                }
+                case 0x05:{ // BGE
+                    if(static_cast<int32_t>(regs[rs1]) >= static_cast<int32_t>(regs[rs2]))
+                        jump = true;
+                    break;
+                }
+                case 0x06:{ // BLTU
+                    if(regs[rs1] < regs[rs2])
+                        jump = true;
+                    break;
+                }
+                case 0x07:{ // BGEU
+                    if(regs[rs1] >= regs[rs2])
+                        jump = true;
+                    break;
+                }
+
+                
+            }
+            if(jump)
+                this->pc = (this->pc - 4) + offset;
 
             break;
         }

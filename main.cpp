@@ -110,7 +110,7 @@ void RISCV_CPU::execute(uint32_t inst){
             uint8_t rs2    = (inst >> 20) & 0x1f;
             uint8_t funct7 = (inst >> 25) & 0x7f;
 
-            int result = 0;
+            uint32_t result = 0;
 
             switch (funct3){
                 case 0x00:{ // add and sub
@@ -122,15 +122,15 @@ void RISCV_CPU::execute(uint32_t inst){
                     }
                     break;
                 }
-                case 0x01: result = regs[rs1] << regs[rs2];                                             break; // SLL
-                case 0x02: result = static_cast<int32_t>(regs[rs1]) < static_cast<int32_t>(regs[rs2]);  break; // SLT
-                case 0x03: result = regs[rs1] < regs[rs2];                                              break; // SLTU
+                case 0x01: result = regs[rs1] << (regs[rs2] & 0x1f);                                             break; // SLL
+                case 0x02: result = (static_cast<int32_t>(regs[rs1]) < static_cast<int32_t>(regs[rs2]))? 1 : 0;  break; // SLT
+                case 0x03: result = (regs[rs1] < regs[rs2]) ? 1 : 0;                                              break; // SLTU
                 case 0x05:{ // SRL and SRA
 
                     if(funct7 == 0x00){ 
-                        result = regs[rs1] >> regs[rs2];
+                        result = regs[rs1] >> (regs[rs2] & 0x1f);
                     } else{ // Arithmetic
-                        result = static_cast<int32_t>(regs[rs1]) >> regs[rs2];
+                        result = static_cast<int32_t>(regs[rs1]) >> (regs[rs2] & 0x1f);
                     }
                     break;
                 }
@@ -185,7 +185,6 @@ void RISCV_CPU::execute(uint32_t inst){
         
         case 0x63:{ // B-type
             
-
             uint8_t  rs1     = (inst >> 15) & 0x1f;
             uint8_t  rs2     = (inst >> 20) & 0x1f;
             uint8_t  funct3  = (inst >> 12) & 0x7;
@@ -237,6 +236,98 @@ void RISCV_CPU::execute(uint32_t inst){
             if(jump)
                 this->pc = (this->pc - 4) + offset;
 
+            break;
+        }
+        case 0x03:{ // Load Operation
+
+            int32_t imm     = static_cast<int32_t>(inst) >> 20;
+            uint8_t rs1     = (inst >> 15) & 0x1f;
+            uint8_t funct3  = (inst >> 12) & 0x07;
+            uint8_t rd      = (inst >> 7)  & 0x1f;
+            
+            uint32_t addr   = regs[rs1] + imm;
+            uint32_t result = 0;
+
+            switch(funct3){
+                case 0x00:{ // LB
+                    result = static_cast<int32_t>(static_cast<int8_t>(memory[addr]));
+                    break;
+                }
+                case 0x01:{ // LH
+                    result = memory[addr] | memory[addr + 1] << 8;
+                    result = static_cast<int32_t>(static_cast<int16_t>(result));
+                    break;
+                }
+                case 0x02:{ // LW
+                    result = memory[addr] | memory[addr + 1] << 8 | memory[addr + 2] << 16 | memory[addr + 3] << 24;
+                    break;
+                }
+                case 0x04:{ // LBU
+                    result = memory[addr];
+                    break;
+                }
+                case 0x05:{ // LHU
+                    result = memory[addr] | memory[addr + 1] << 8;
+                    break;
+                }
+            }
+
+            if(rd != 0){
+                regs[rd] = result;
+            }
+            break;
+        }
+        case 0x23:{ // Store
+
+            uint32_t imm11_5     = (inst >> 25);
+            uint32_t imm4_0      = (inst >> 7) & 0x1f;
+            uint8_t  rs1         = (inst >> 15) & 0x1f;
+            uint8_t  rs2         = (inst >> 20) & 0x1f;
+            uint8_t  funct3      = (inst >> 12) & 0x07;
+            
+            uint32_t offset     = (imm4_0) | (imm11_5 << 5);
+            if(offset & (1 << 11)){
+                offset |= 0xfffff000;
+            }
+            uint32_t addr       = regs[rs1] + offset;
+            uint32_t result     = 0;
+
+            switch(funct3){
+                case 0x00:{
+                    result = (regs[rs2] & 0xff);
+                    break;
+                }
+                case 0x01:{
+                    result = (regs[rs2] & 0xffff);
+                    break;
+                }
+                case 0x02:{
+                    result = (regs[rs2] & 0xffffffff);
+                    break;
+                }
+            }
+
+            for(int i = 0; i < (1 << funct3); i++){
+                memory[addr + i] = (result >> (i * 8)) & 0xff;
+            }
+            break;
+        }
+        case 0x37:{ //LUI
+            
+            uint32_t imm = inst & 0xfffff000;
+            uint8_t  rd  = (inst >> 7) &  0x1f;
+
+            if(rd != 0)
+                regs[rd] = imm; 
+            break;
+        }
+        case 0x17:{
+
+            uint32_t imm = inst & 0xfffff000;
+            uint8_t  rd  = (inst >> 7) & 0x1f;
+
+            if(rd != 0)
+                regs[rd] = (pc - 4) + imm;
             break;
         }
     }

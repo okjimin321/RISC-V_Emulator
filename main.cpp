@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <iostream>
 
+#define ENTRY_ADDR 0
+
 class RISCV_CPU{
 private:
     uint32_t regs[32];
@@ -36,7 +38,7 @@ public:
     
 };
 
-RISCV_CPU::RISCV_CPU(): pc { 0 }, memory(1024 * 1024, 0) {
+RISCV_CPU::RISCV_CPU(): pc { ENTRY_ADDR }, memory(1024 * 1024, 0) {
 
     for(int i = 0; i < 32; i++){
         regs[i] = 0;
@@ -52,7 +54,7 @@ uint32_t RISCV_CPU::fetch(){
     
     uint32_t inst = 0;
     for(int i = 0; i < 4; i++){
-        inst |= (memory[pc + i]) << (i * 8); 
+        inst |= (static_cast<uint32_t>(memory[pc + i]) << (i * 8)); 
     }
 
     pc += 4;
@@ -94,6 +96,7 @@ void RISCV_CPU::execute(uint32_t inst){
                 }
                 case 0x06: result = regs[rs1] | imm;                                    break; // ORI
                 case 0x07: result = regs[rs1] & imm;                                    break; // ANDI
+                default: return;
             }
             
             if(rd != 0){ // reg[0] is not changable
@@ -117,8 +120,10 @@ void RISCV_CPU::execute(uint32_t inst){
 
                     if(funct7 == 0x00){
                         result = regs[rs1] + regs[rs2];
-                    } else{
+                    } else if(funct7 == 0x20){
                         result = regs[rs1] - regs[rs2];
+                    } else{
+                        return;
                     }
                     break;
                 }
@@ -129,14 +134,17 @@ void RISCV_CPU::execute(uint32_t inst){
 
                     if(funct7 == 0x00){ 
                         result = regs[rs1] >> (regs[rs2] & 0x1f);
-                    } else{ // Arithmetic
+                    } else if(funct7 == 0x20){ // Arithmetic
                         result = static_cast<int32_t>(regs[rs1]) >> (regs[rs2] & 0x1f);
+                    } else{
+                        return;
                     }
                     break;
                 }
                 case 0x04: result = regs[rs1] ^ regs[rs2];                                              break; // XOR
                 case 0x06: result = regs[rs1] | regs[rs2];                                              break; // OR
                 case 0x07: result = regs[rs1] & regs[rs2];                                              break; // AND
+                default: return;
             }
 
             if(rd != 0){
@@ -168,18 +176,24 @@ void RISCV_CPU::execute(uint32_t inst){
         }
         
         case 0x67: { // JALR Operation 
-            uint8_t rd     = (inst >> 7)  & 0x1f;
-            uint8_t funct3 = (inst >> 12) & 0x07;
-            uint8_t rs1    = (inst >> 15) & 0x1f;
+            uint8_t rd      = (inst >> 7)  & 0x1f;
+            uint8_t funct3  = (inst >> 12) & 0x07;
+            uint8_t rs1     = (inst >> 15) & 0x1f;
 
-            int32_t offset = (static_cast<int32_t>(inst) >> 20);
+            int32_t offset  = (static_cast<int32_t>(inst) >> 20);
+            uint32_t source = regs[rs1];
 
-            // save Return address
-            if(rd != 0)
-                this->regs[rd] = this->pc;
+            if(funct3 == 0){
+                // save Return address
+                if(rd != 0)
+                    this->regs[rd] = this->pc;
 
-            // Jump
-            this->pc = (regs[rs1] + offset) & ~0x1; 
+                // Jump
+                this->pc = (source + offset) & ~0x1; 
+            } else{
+                return;
+            }
+
             break;
         }
         
@@ -259,7 +273,9 @@ void RISCV_CPU::execute(uint32_t inst){
                     break;
                 }
                 case 0x02:{ // LW
-                    result = memory[addr] | memory[addr + 1] << 8 | memory[addr + 2] << 16 | memory[addr + 3] << 24;
+                    result = memory[addr] | static_cast(uint32_t)(memory[addr + 1]) << 8 
+                            | static_cast<uint32_t>(memory[addr + 2]) << 16 
+                            | static_cast<uint32_t>(memory[addr + 3]) << 24;
                     break;
                 }
                 case 0x04:{ // LBU
@@ -267,7 +283,7 @@ void RISCV_CPU::execute(uint32_t inst){
                     break;
                 }
                 case 0x05:{ // LHU
-                    result = memory[addr] | memory[addr + 1] << 8;
+                    result = memory[addr] | static_cast<uint32_t>(memory[addr + 1]) << 8;
                     break;
                 }
             }

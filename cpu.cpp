@@ -369,15 +369,17 @@ void RISCV_CPU::execute(uint32_t inst){
                 }
             }
 
-            if(addr == UART_ADDR){ // MMIO
+            // MMIO
+            if(addr == UART_ADDR){ // UART
                 std::cout << static_cast<char>(result & 0xff);
                 std::cout.flush();
                 return;
-            } else if(addr == FRAMEBUF_ADDR){ // FRAME BUFFER
+            } else if(FRAMEBUF_ADDR <= addr && addr < TIMER_ADDR){ // FRAME BUFFER
                 // TODO
                 return;
             }
 
+            // Save to Memory
             for(int i = 0; i < (1 << funct3); i++){
                 memory[addr + i] = (result >> (i * 8)) & 0xff;
             }

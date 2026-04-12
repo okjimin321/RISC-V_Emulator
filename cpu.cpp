@@ -2,8 +2,9 @@
 #include <iostream>
 #include "cpu.h"
 
-RISCV_CPU::RISCV_CPU(): pc { ENTRY_ADDR }, memory(1024 * 1024, 0) {
+RISCV_CPU::RISCV_CPU(): pc { ENTRY_ADDR }, memory(16 * 1024 * 1024, 0) {
 
+    // Initialize Registers
     for(int i = 0; i < 32; i++){
         regs[i] = 0;
     }
@@ -371,6 +372,9 @@ void RISCV_CPU::execute(uint32_t inst){
             if(addr == UART_ADDR){ // MMIO
                 std::cout << static_cast<char>(result & 0xff);
                 std::cout.flush();
+                return;
+            } else if(addr == FRAMEBUF_ADDR){ // FRAME BUFFER
+                // TODO
                 return;
             }
 

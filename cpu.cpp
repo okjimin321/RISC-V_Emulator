@@ -2,7 +2,7 @@
 #include <iostream>
 #include "cpu.h"
 
-RISCV_CPU::RISCV_CPU(): pc { ENTRY_ADDR }, memory(16 * 1024 * 1024, 0) {
+RISCV_CPU::RISCV_CPU(): pc { ENTRY_ADDR }, memory(16 * 1024 * 1024, 0), frameBuffer(320 * 200, 0) {
 
     // Initialize Registers
     for(int i = 0; i < 32; i++){

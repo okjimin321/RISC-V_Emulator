@@ -1,0 +1,45 @@
+:: cmd.exe RISC-V emulator test commands
+
+:: 1. Make the RISC-V cross compiler available in this cmd session.
+set PATH=C:\msys64\mingw64\bin;%PATH%
+
+:: 2. Check that the cross compiler is available.
+riscv32-unknown-elf-gcc --version
+
+:: 3. Generate RISC-V assembly from test.c so you can inspect the instructions.
+riscv32-unknown-elf-gcc ^
+  -march=rv32i ^
+  -mabi=ilp32 ^
+  -O1 ^
+  -ffreestanding ^
+  -S test.c ^
+  -o test.s
+
+:: 4. Build a bare-metal RISC-V ELF using the linker script.
+riscv32-unknown-elf-gcc ^
+  -march=rv32i ^
+  -mabi=ilp32 ^
+  -O1 ^
+  -ffreestanding ^
+  -nostdlib ^
+  -nostartfiles ^
+  "-Wl,--no-relax" ^
+  "-Wl,-Map=test.map" ^
+  -T test.ld ^
+  test.c ^
+  -o test.elf
+
+:: 5. Disassemble the ELF to verify addresses and generated instructions.
+riscv32-unknown-elf-objdump -d test.elf
+
+:: 6. Extract a raw binary that the emulator can load at address 0.
+riscv32-unknown-elf-objcopy -O binary test.elf test.bin
+
+:: 7. Build the C++ emulator test harness.
+g++ -std=c++17 -Wall -Wextra -Wconversion ^
+  emulator_test_harness.cpp ^
+  cpu.cpp ^
+  -o emulator_test_harness.exe
+
+:: 8. Run the emulator test harness with the generated binary.
+emulator_test_harness.exe test.bin 2000

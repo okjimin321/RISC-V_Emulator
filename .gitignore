@@ -1,0 +1,6 @@
+*.exe
+*.map
+*.bin
+*.elf
+*.o
+test.s

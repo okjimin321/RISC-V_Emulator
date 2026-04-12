@@ -1,42 +1,5 @@
-#include <stdint.h>
-#include <vector>
 #include <stdio.h>
-#include <iostream>
-
-#define ENTRY_ADDR 0
-
-class RISCV_CPU{
-private:
-    uint32_t regs[32];
-    uint32_t pc;
-    std::vector<uint8_t> memory;
-
-public:
-    RISCV_CPU();
-    uint32_t fetch();
-    void execute(uint32_t);
-    void step();
-
-    // test 
-    void write_word(uint32_t addr, uint32_t inst){
-        for(int i = 0; i < 4; i++){
-            memory[addr + i] = (inst >> (8 * i) & 0xff);
-        }
-    }
-
-    // test
-    void dump_reg(){
-        printf("\n================ Register Dump =================\n");
-        for(int i = 0; i < 32; i++){
-            printf("x%-2d: %-11d (0x%08x)  ", i, (int32_t)regs[i], regs[i]);
-            if((i + 1) % 4 == 0){
-                printf("\n");
-            }
-        }
-        printf("==============================================\n");
-    }
-    
-};
+#include "cpu.h"
 
 RISCV_CPU::RISCV_CPU(): pc { ENTRY_ADDR }, memory(1024 * 1024, 0) {
 
@@ -273,7 +236,7 @@ void RISCV_CPU::execute(uint32_t inst){
                     break;
                 }
                 case 0x02:{ // LW
-                    result = memory[addr] | static_cast(uint32_t)(memory[addr + 1]) << 8 
+                    result = memory[addr] | static_cast<uint32_t>(memory[addr + 1]) << 8 
                             | static_cast<uint32_t>(memory[addr + 2]) << 16 
                             | static_cast<uint32_t>(memory[addr + 3]) << 24;
                     break;
@@ -350,43 +313,19 @@ void RISCV_CPU::execute(uint32_t inst){
 
 }
 
-int main() {
-    RISCV_CPU cpu;
-
-    std::cout << "--- RISC-V Emulator Test Start ---" << std::endl;
-
-    // 1. x1 = x0 + 10 (addi x1, x0, 10)
-    // 기대 결과: x1 = 10 (0x0000000a)
-    cpu.write_word(0, 0x00A00093); 
-
-    // 2. x2 = x0 - 5 (addi x2, x0, -5)
-    // -5는 12비트 즉시값으로 0xFFB입니다.
-    // 기대 결과: x2 = -5 (0xfffffffb) -> 부호 확장 확인
-    cpu.write_word(4, 0xFFB00113); 
-
-    // 3. x3 = x2 >> 1 (srai x3, x2, 1)
-    // -5(111...1011)를 오른쪽으로 1칸 산술 시프트
-    // 기대 결과: x3 = -3 (0xfffffffd) -> SRAI 로직 확인
-    cpu.write_word(8, 0x40115193); 
-
-    // 4. x4 = (x2 < 10) ? 1 : 0 (slti x4, x2, 10)
-    // -5 < 10 은 참이므로 1이 저장되어야 함
-    // 기대 결과: x4 = 1 (0x00000001) -> Signed 비교 확인
-    cpu.write_word(12, 0x00A12213);
-
-    // 5. x5 = (unsigned x2 < 10) ? 1 : 0 (sltiu x5, x2, 10)
-    // 0xfffffffb(42억...) < 10 은 거짓이므로 0이 저장되어야 함
-    // 기대 결과: x5 = 0 (0x00000000) -> Unsigned 비교 확인
-    cpu.write_word(16, 0x00A13293);
-
-    // 총 5개의 명령어를 실행합니다.
-    for (int i = 0; i < 5; i++) {
-        std::cout << "\n[Step " << i + 1 << "]" << std::endl;
-        cpu.step();
-        cpu.dump_reg(); // 매 단계마다 레지스터 변화를 찍어봅니다.
+void RISCV_CPU::dump_reg(){
+    printf("\n================ Register Dump =================\n");
+    for(int i = 0; i < 32; i++){
+        printf("x%-2d: %-11d (0x%08x)  ", i, (int32_t)regs[i], regs[i]);
+        if((i + 1) % 4 == 0){
+            printf("\n");
+        }
     }
+    printf("==============================================\n");
+}
 
-    std::cout << "\n--- Test Completed ---" << std::endl;
-
-    return 0;
+void RISCV_CPU::write_word(uint32_t addr, uint32_t inst){
+    for(int i = 0; i < 4; i++){
+        memory[addr + i] = (inst >> (8 * i) & 0xff);
+    }
 }

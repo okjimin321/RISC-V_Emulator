@@ -10,7 +10,7 @@
 
 #define private public
 #define main riscv_original_main
-#include "main.cpp"
+#include "cpu.h"
 #undef main
 #undef private
 

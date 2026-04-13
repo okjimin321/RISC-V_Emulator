@@ -311,40 +311,53 @@ void RISCV_CPU::execute(uint32_t inst){
             uint32_t addr   = regs[rs1] + imm;
             uint32_t result = 0;
 
+            // MMIO check (TODO Sperate from CPU to Memory)
+            if(addr == TIMER_ADDR){
+                auto elapsed = std::chrono::system_clock::now() - bootTime;
+
+                result = static_cast<uint32_t>(
+                    std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
+                );
+            } else if(addr == KEY_VALUE_ADDR){
+                
+                if(!keyQueue.empty()){
+                    result = keyQueue.front();
+                    keyQueue.pop();
+                } else{
+                    result = 0;
+                }
+            } 
+            else if(addr == KEY_STATUS_ADDR){
+                result = !keyQueue.empty();
+            }
+            else{
             switch(funct3){
                 case 0x00:{ // LB
-                    result = static_cast<int32_t>(static_cast<int8_t>(memory[addr]));
-                    break;
-                }
-                case 0x01:{ // LH
-                    result = memory[addr] | memory[addr + 1] << 8;
-                    result = static_cast<int32_t>(static_cast<int16_t>(result));
-                    break;
-                }
-                case 0x02:{ // LW
-                    result = memory[addr] | static_cast<uint32_t>(memory[addr + 1]) << 8 
+                        result = static_cast<int32_t>(static_cast<int8_t>(memory[addr]));
+                        break;
+                    }
+                    case 0x01:{ // LH
+                        result = memory[addr] | memory[addr + 1] << 8;
+                        result = static_cast<int32_t>(static_cast<int16_t>(result));
+                        break;
+                    }
+                    case 0x02:{ // LW
+                        result = memory[addr] | static_cast<uint32_t>(memory[addr + 1]) << 8 
                             | static_cast<uint32_t>(memory[addr + 2]) << 16 
                             | static_cast<uint32_t>(memory[addr + 3]) << 24;
-                    break;
-                }
-                case 0x04:{ // LBU
-                    result = memory[addr];
-                    break;
-                }
-                case 0x05:{ // LHU
-                    result = memory[addr] | static_cast<uint32_t>(memory[addr + 1]) << 8;
-                    break;
+                        break;
+                    }
+                    case 0x04:{ // LBU
+                        result = memory[addr];
+                        break;
+                    }
+                    case 0x05:{ // LHU
+                        result = memory[addr] | static_cast<uint32_t>(memory[addr + 1]) << 8;
+                        break;
+                    }
                 }
             }
-
-            if(addr == TIMER_ADDR){
-                
-                result = std::chrono::system_clock::now() - bootTime;
-                if(rd != 0)
-                    regs[rd] = result;
-                return;
-            }
-
+            
             if(rd != 0){
                 regs[rd] = result;
             }

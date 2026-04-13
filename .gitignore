@@ -3,4 +3,9 @@
 *.bin
 *.elf
 *.o
-test.s
+
+build/
+test/
+
+guest/user_program/*
+!guest/user_program/.gitkeep

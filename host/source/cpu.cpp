@@ -2,7 +2,7 @@
 #include <iostream>
 #include "cpu.h"
 
-RISCV_CPU::RISCV_CPU(): pc { ENTRY_ADDR }, memory(16 * 1024 * 1024, 0), frameBuffer(320 * 200, 0) {
+RISCV_CPU::RISCV_CPU(): pc { ENTRY_ADDR }, memory(16 * 1024 * 1024, 0), frameBuffer(640 * 400, 0) {
 
     // Initialize Booting Time
     bootTime = std::chrono::system_clock::now();

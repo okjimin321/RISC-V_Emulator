@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <stdint.h>
+#include <chrono>
 
 class RISCV_CPU{
 private:
@@ -9,6 +10,9 @@ private:
 
     uint32_t regs[32];
     uint32_t pc;
+
+    // Timer
+    std::chrono::milliseconds bootTime;
 
     // TODO (Seperate CPU/BUS/MEMORY)
     std::vector<uint8_t> memory;

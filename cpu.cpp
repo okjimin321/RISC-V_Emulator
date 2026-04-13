@@ -375,7 +375,8 @@ void RISCV_CPU::execute(uint32_t inst){
                 std::cout.flush();
                 return;
             } else if(FRAMEBUF_ADDR <= addr && addr < TIMER_ADDR){ // FRAME BUFFER
-                // TODO
+                uint32_t idx = (addr - FRAMEBUF_ADDR) / 4;
+                frameBuffer[idx] = result;
                 return;
             }
 

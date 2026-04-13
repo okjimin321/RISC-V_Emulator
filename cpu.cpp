@@ -4,6 +4,9 @@
 
 RISCV_CPU::RISCV_CPU(): pc { ENTRY_ADDR }, memory(16 * 1024 * 1024, 0), frameBuffer(320 * 200, 0) {
 
+    // Initialize Booting Time
+    bootTime = std::chrono::system_clock::now();
+
     // Initialize Registers
     for(int i = 0; i < 32; i++){
         regs[i] = 0;
@@ -332,6 +335,14 @@ void RISCV_CPU::execute(uint32_t inst){
                     result = memory[addr] | static_cast<uint32_t>(memory[addr + 1]) << 8;
                     break;
                 }
+            }
+
+            if(addr == TIMER_ADDR){
+                
+                result = std::chrono::system_clock::now() - bootTime;
+                if(rd != 0)
+                    regs[rd] = result;
+                return;
             }
 
             if(rd != 0){

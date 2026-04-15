@@ -38,7 +38,7 @@ public:
     void put_keyBoard(uint32_t value){
         keyQueue.push(value);
     }
-    std::vector<uint32_t> getFrameBuffer(){
+    std::vector<uint32_t>& getFrameBuffer(){
         return frameBuffer;
     }
     

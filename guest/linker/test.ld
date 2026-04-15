@@ -26,7 +26,7 @@ SECTIONS
     _bss_end  = .;
 
     _heap_start = .;
+    _heap_end = 0x00800000;
 
     _stack_top = 0x01000000;
-    _heap_end  = _stack_top - 0x00100000;
 }

@@ -15,3 +15,5 @@ char* strdup(const char* s);
 
 void *memset(void *dst, int value, unsigned int n);
 void *memcpy(void *dst, const void *src, unsigned int n);
+void *memmove(void *dst, const void *src, unsigned int n);
+int memcmp(const void *a, const void *b, unsigned int n);

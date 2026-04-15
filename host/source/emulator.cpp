@@ -12,6 +12,9 @@
 #include "cpu.h"
 #include "doomkeys.h"
 
+static constexpr uint32_t WAD_LOAD_ADDR = 0x00800000;
+static constexpr size_t WAD_MAX_SIZE = 0x00500000;
+
 // for DOOMGeneric
 static unsigned char convertToDoomKey(unsigned int key){
   switch (key)
@@ -94,36 +97,89 @@ static unsigned char convertToDoomKey(unsigned int key){
   return key;
 }
 
-static void load_binary(RISCV_CPU& cpu, const std::vector<uint8_t>& bytes) {
+static bool is_number(const char* s) {
+    if (*s == '\0') {
+        return false;
+    }
+
+    while (*s) {
+        if (*s < '0' || *s > '9') {
+            return false;
+        }
+        s++;
+    }
+
+    return true;
+}
+
+static bool read_binary_file(const char* path, std::vector<uint8_t>& bytes) {
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        std::cerr << "failed to open " << path << "\n";
+        return false;
+    }
+
+    bytes.assign(
+        std::istreambuf_iterator<char>(input),
+        std::istreambuf_iterator<char>());
+
+    return true;
+}
+
+static void load_binary(RISCV_CPU& cpu, const std::vector<uint8_t>& bytes, uint32_t addr) {
     for (size_t offset = 0; offset < bytes.size(); offset += 4) {
         uint32_t word = 0;
         for (size_t i = 0; i < 4 && offset + i < bytes.size(); ++i) {
             word |= static_cast<uint32_t>(bytes[offset + i]) << (8 * i);
         }
-        cpu.write_word(static_cast<uint32_t>(offset), word);
+        cpu.write_word(addr + static_cast<uint32_t>(offset), word);
     }
 }
 
 
 int main(int argc, char** argv) {
-    if (argc < 2 || argc > 3) {
-        std::cerr << "usage: emulator_test_harness <test.bin> [steps]\n";
-        return 2;
-    }
-    int steps = argc == 3 ? std::atoi(argv[2]) : 2000;
-
-    std::ifstream input(argv[1], std::ios::binary);
-    if (!input) {
-        std::cerr << "failed to open " << argv[1] << "\n";
+    if (argc < 2 || argc > 4) {
+        std::cerr << "usage: emulator <program.bin> [wadfile] [steps]\n";
         return 2;
     }
 
-    std::vector<uint8_t> bytes{
-        std::istreambuf_iterator<char>(input),
-        std::istreambuf_iterator<char>()};
+    const char* program_path = argv[1];
+    const char* wad_path = nullptr;
+    int steps = 2000;
+
+    if (argc == 3) {
+        if (is_number(argv[2])) {
+            steps = std::atoi(argv[2]);
+        } else {
+            wad_path = argv[2];
+        }
+    } else if (argc == 4) {
+        wad_path = argv[2];
+        steps = std::atoi(argv[3]);
+    }
+
+    std::vector<uint8_t> program_bytes;
+    if (!read_binary_file(program_path, program_bytes)) {
+        return 2;
+    }
+
+    std::vector<uint8_t> wad_bytes;
+    if (wad_path != nullptr) {
+        if (!read_binary_file(wad_path, wad_bytes)) {
+            return 2;
+        }
+
+        if (wad_bytes.size() > WAD_MAX_SIZE) {
+            std::cerr << "WAD is larger than guest WAD_SIZE: "
+                      << wad_bytes.size() << " > " << WAD_MAX_SIZE << "\n";
+            return 2;
+        }
+    }
 
     RISCV_CPU cpu;
-    load_binary(cpu, bytes);
+    load_binary(cpu, program_bytes, 0x00000000);
+    load_binary(cpu, wad_bytes, WAD_LOAD_ADDR);
+
     
     // Create SDL Window
     SDL_Init(SDL_INIT_VIDEO);
@@ -133,7 +189,7 @@ int main(int argc, char** argv) {
 
     int width  = 640;
     int height = 400;
-    int scale = 4;
+    int scale = 1;
 
     SDL_CreateWindowAndRenderer(width * scale, height * scale, 0, &window, &renderer);
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);

@@ -14,9 +14,11 @@
 
 static constexpr uint32_t WAD_LOAD_ADDR = 0x00800000;
 static constexpr size_t WAD_MAX_SIZE = 0x00500000;
+static constexpr unsigned int GAMEPAD_BUTTON_BASE = 0x10000000u;
 
 // for DOOMGeneric
 static unsigned char convertToDoomKey(unsigned int key){
+  
   switch (key)
     {
     case SDLK_RETURN:
@@ -88,6 +90,27 @@ static unsigned char convertToDoomKey(unsigned int key){
       break;
     case SDLK_MINUS:
       key = KEY_MINUS;
+      break;
+    case GAMEPAD_BUTTON_BASE + SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+      key = KEY_LEFTARROW;
+      break;
+    case GAMEPAD_BUTTON_BASE + SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+      key = KEY_RIGHTARROW;
+      break;
+    case GAMEPAD_BUTTON_BASE + SDL_CONTROLLER_BUTTON_DPAD_UP:
+      key = KEY_UPARROW;
+      break;
+    case GAMEPAD_BUTTON_BASE + SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+      key = KEY_DOWNARROW;
+      break;
+    case GAMEPAD_BUTTON_BASE + SDL_CONTROLLER_BUTTON_A:
+      key = KEY_FIRE;
+      break;
+    case GAMEPAD_BUTTON_BASE + SDL_CONTROLLER_BUTTON_B:
+      key = KEY_USE;
+      break;
+    case GAMEPAD_BUTTON_BASE + SDL_CONTROLLER_BUTTON_START:
+      key = KEY_ENTER;
       break;
     default:
       key = tolower(key);
@@ -182,7 +205,7 @@ int main(int argc, char** argv) {
 
     
     // Create SDL Window
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
 
     SDL_Window   *window    = NULL;
     SDL_Renderer *renderer  = NULL;
@@ -194,19 +217,89 @@ int main(int argc, char** argv) {
     SDL_CreateWindowAndRenderer(width * scale, height * scale, 0, &window, &renderer);
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
 
+    // test for Dualshock controller
+    SDL_GameController* controller = NULL;
+
+    int numJoysticks = SDL_NumJoysticks();
+
+    for (int i = 0; i < numJoysticks; i++) {
+        if (SDL_IsGameController(i)) {
+            controller = SDL_GameControllerOpen(i);
+            break;
+        }
+    }
+
+    if (controller == NULL) {
+        // No game controller found
+        printf("No game controller found\n");
+    }
+
     SDL_Event event;
     bool running = true;
+    bool leftPressed = false;
+    bool rightPressed = false;
+    bool upPressed = false;
+    bool downPressed = false;
+
     while(running) {
 
         // Get KeyBoard Input
         while(SDL_PollEvent(&event)){
             if(event.type == SDL_KEYDOWN){
-                unsigned char doomKey = convertToDoomKey(event.key.keysym.sym);
-                cpu.put_keyBoard((1u << 8) | doomKey);
+
+              unsigned char doomKey = convertToDoomKey(event.key.keysym.sym);
+              cpu.put_keyBoard((1u << 8) | doomKey);
+
             } else if(event.type == SDL_KEYUP){
-                unsigned char doomKey = convertToDoomKey(event.key.keysym.sym);
-                cpu.put_keyBoard((0 << 8) | doomKey);
-            }
+
+              unsigned char doomKey = convertToDoomKey(event.key.keysym.sym);
+              cpu.put_keyBoard((0 << 8) | doomKey);
+
+            }  else if(event.type == SDL_CONTROLLERBUTTONDOWN){
+
+              unsigned char doomKey = convertToDoomKey(GAMEPAD_BUTTON_BASE + event.cbutton.button);
+              cpu.put_keyBoard((1u << 8) | doomKey);
+
+            } else if(event.type == SDL_CONTROLLERBUTTONUP){
+
+              unsigned char doomKey = convertToDoomKey(GAMEPAD_BUTTON_BASE + event.cbutton.button);
+              cpu.put_keyBoard((0u << 8) | doomKey);
+
+            } else if (event.type == SDL_CONTROLLERAXISMOTION) {
+              
+              const int DEADZONE = 12000;
+              Sint16 value = event.caxis.value;
+
+              if (event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTX) {
+                bool nowLeft = value < -DEADZONE;
+                bool nowRight = value > DEADZONE;
+
+                if (nowLeft != leftPressed) {
+                  cpu.put_keyBoard(((nowLeft ? 1u : 0u) << 8) | KEY_LEFTARROW);
+                  leftPressed = nowLeft;
+                }
+
+                if (nowRight != rightPressed) {
+                  cpu.put_keyBoard(((nowRight ? 1u : 0u) << 8) | KEY_RIGHTARROW);
+                  rightPressed = nowRight;
+                }
+              }
+
+              if (event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTY) {
+                bool nowUp = value < -DEADZONE;
+                bool nowDown = value > DEADZONE;
+
+                if (nowUp != upPressed) {
+                  cpu.put_keyBoard(((nowUp ? 1u : 0u) << 8) | KEY_UPARROW);
+                  upPressed = nowUp;
+                }
+
+                if (nowDown != downPressed) {
+                  cpu.put_keyBoard(((nowDown ? 1u : 0u) << 8) | KEY_DOWNARROW);
+                  downPressed = nowDown;
+                }
+              }
+            }  
             if(event.type == SDL_QUIT){
                 running = false;
             }
@@ -224,6 +317,10 @@ int main(int argc, char** argv) {
         SDL_RenderCopy(renderer, texture, nullptr, nullptr);
         SDL_RenderPresent(renderer);
     }
-    
+
+    if(controller != NULL){
+        SDL_GameControllerClose(controller);
+    }
+    SDL_Quit();
     return 0;
 }

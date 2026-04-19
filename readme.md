@@ -1,8 +1,6 @@
 # Bare-metal RISC-V Emulator
 
-RV32IM 명령어를 해석하는 간단한 베어메탈 RISC-V 에뮬레이터입니다. 호스트는 C++로 작성되어 있고, SDL2를 사용해 화면 출력과 키보드/게임패드 입력을 처리합니다. 게스트 프로그램은 운영체제 없이 `0x00000000`에서 시작하는 RISC-V raw binary로 로드되며, UART, framebuffer, timer, keyboard 같은 장치는 MMIO로 접근합니다.
-
-현재 목표는 자체 런타임과 MMIO를 통해 `doomgeneric` 같은 비교적 큰 C 프로그램을 실행할 수 있는 환경을 만드는 것입니다.
+RV32IM 명령어를 해석하는 베어메탈 RISC-V 에뮬레이터입니다. 호스트는 C++로 작성되어 있고, SDL2를 사용해 화면 출력과 키보드/게임패드 입력을 처리합니다. 게스트 프로그램은 운영체제 없이 `0x00000000`에서 시작하는 RISC-V raw binary로 로드되며, UART, framebuffer, timer, keyboard 같은 장치는 MMIO로 접근합니다.
 
 ## 개발 배경
 
@@ -39,6 +37,22 @@ RV32IM 명령어를 해석하는 간단한 베어메탈 RISC-V 에뮬레이터�
   - `memcpy`, `memset`, `strlen`, `strcmp`, `strstr` 등 문자열/메모리 함수
   - `malloc`, `calloc`, `realloc`, `free`
   - WAD 파일 접근을 위한 메모리 기반 `fopen`, `fread`, `fseek`, `ftell`
+
+## 프로젝트 구조
+
+```text
+host/
+  include/cpu.h          host CPU 클래스 인터페이스
+  source/cpu.cpp         RV32IM fetch/decode/execute와 MMIO 구현
+  source/emulator.cpp    SDL2 window/input loop와 guest binary loader
+
+guest/
+  include/               guest용 libc/mmio 헤더
+  source/                guest startup code와 최소 libc 구현
+  linker/test.ld         bare-metal guest linker script
+  user_program/          DOOMGeneric 등 외부 guest program 위치
+
+```
 
 ## 메모리 맵
 
@@ -156,7 +170,8 @@ riscv32-unknown-elf-objcopy -O binary build/screen_test.elf build/screen_test.bi
 세 번째 인자는 SDL 프레임마다 실행할 CPU step 수입니다.
 
 ## DOOMGeneric 빌드와 실행
-
+<img title="mainScreen" src="img\mainScreen.png" width = 400, height = 200>
+<img title="gameScreen" src="img\gameScreen.png" width = 400, height = 200>
 `user_program_build/Makefile`은 `doomgeneric`을 guest binary로 빌드하기 위한 설정입니다. 현재 저장소에서는 `guest/user_program/*`가 `.gitignore`에 의해 제외되어 있으므로, DOOMGeneric 소스와 RISC-V platform glue 코드를 해당 위치에 직접 배치해야 합니다.
 
 기대하는 경로:
@@ -180,7 +195,7 @@ make -C user_program_build
 
 host는 WAD 파일을 `0x00800000`에 미리 적재합니다. guest의 `fopen`, `fread`, `fseek`, `ftell`은 실제 파일 시스템을 사용하지 않고 이 메모리 영역을 파일처럼 읽습니다.
 
-## 구현하면서 해결한 문제
+## 트러블슈팅
 
 ### Immediate 인코딩
 
@@ -206,26 +221,6 @@ DOOMGeneric은 일반적인 C 라이브러리 함수와 파일 입출력을 사�
 
 `printf` 계열 구현과 DOOMGeneric 코드에는 나눗셈, 곱셈, 일부 floating-point helper가 필요합니다. CPU에는 RV32M 곱셈/나눗셈 명령어를 구현했고, 빌드 시 `-lgcc`를 링크해 컴파일러가 생성하는 helper 함수 의존성을 처리합니다.
 
-## 프로젝트 구조
-
-```text
-host/
-  include/cpu.h          host CPU 클래스 인터페이스
-  source/cpu.cpp         RV32IM fetch/decode/execute와 MMIO 구현
-  source/emulator.cpp    SDL2 window/input loop와 guest binary loader
-
-guest/
-  include/               guest용 libc/mmio 헤더
-  source/                guest startup code와 최소 libc 구현
-  linker/test.ld         bare-metal guest linker script
-  user_program/          DOOMGeneric 등 외부 guest program 위치
-
-user_program_build/
-  Makefile               DOOMGeneric guest binary 빌드 스크립트
-
-test/
-  screen_test.c          framebuffer, timer, keyboard, libc smoke test
-```
 
 ## 현재 한계와 TODO
 

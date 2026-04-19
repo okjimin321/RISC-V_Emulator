@@ -178,7 +178,7 @@ riscv32-unknown-elf-objcopy -O binary build/screen_test.elf build/screen_test.bi
 </table>
 
 `user_program_build/Makefile`은 `doomgeneric`을 guest binary로 빌드하기 위한 설정입니다. 현재 저장소에서는 `guest/user_program/*`가
-제외되어 있습니다. DoomGeneric 저장소스 코드와 wadfile을 직접 배치하여애 실행이 가능합니다
+제외되어 있습니다. DoomGeneric 소스 코드와 wadfile을 직접 배치하여야 실행이 가능합니다
 
 기대하는 경로:
 

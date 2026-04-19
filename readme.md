@@ -170,8 +170,13 @@ riscv32-unknown-elf-objcopy -O binary build/screen_test.elf build/screen_test.bi
 세 번째 인자는 SDL 프레임마다 실행할 CPU step 수입니다.
 
 ## DOOMGeneric 빌드와 실행
-<img title="mainScreen" src="img\mainScreen.png" width = 400, height = 200>
-<img title="gameScreen" src="img\gameScreen.png" width = 400, height = 200>
+<table>
+<tr>
+  <td> <img title="mainScreen" src="img\mainScreen.png" width="400", height="200"> </td>
+  <td> <img title="gameScreen" src="img\gameScreen.png" width="400", height="200"> </td>
+</tr>
+</table>
+
 `user_program_build/Makefile`은 `doomgeneric`을 guest binary로 빌드하기 위한 설정입니다. 현재 저장소에서는 `guest/user_program/*`가 `.gitignore`에 의해 제외되어 있으므로, DOOMGeneric 소스와 RISC-V platform glue 코드를 해당 위치에 직접 배치해야 합니다.
 
 기대하는 경로:
